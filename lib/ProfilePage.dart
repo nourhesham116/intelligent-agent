@@ -157,7 +157,7 @@ class _ProfilePageState extends State<ProfilePage> {
                       await prefs.clear();
                       Navigator.pushAndRemoveUntil(
                         context,
-                        MaterialPageRoute(builder: (_) => HomePage1()),
+                         MaterialPageRoute(builder: (_) => const LoginPage()),
                         (route) => false,
                       );
                       Future.delayed(const Duration(milliseconds: 300), () {

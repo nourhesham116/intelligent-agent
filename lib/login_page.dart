@@ -4,7 +4,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'homePage1.dart';
 import 'forgotPass.dart';
-import 'signup.dart'; // ✅ for navigation
+import 'signup.dart';
+import 'scan.dart'; // ✅ Import ScanPage
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -53,10 +54,17 @@ class _LoginPageState extends State<LoginPage> {
 
       _showToast("Login successful!");
 
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => HomePage1()),
-      );
+      if (email.toLowerCase() == 'admin@admin.admin') {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) =>  ScanPage()),
+        );
+      } else {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => HomePage1()),
+        );
+      }
     } catch (e) {
       print("⚠️ Sign-in error: $e");
       _showToast("An unexpected error occurred.");
@@ -92,7 +100,13 @@ class _LoginPageState extends State<LoginPage> {
             child: ListView(
               shrinkWrap: true,
               children: [
-                const SizedBox(height: 40),
+                const SizedBox(height: 20),
+                Image.asset(
+                  'assets/images/login.png',
+                  height: 200,
+                  fit: BoxFit.contain,
+                ),
+                const SizedBox(height: 20),
                 _buildTextField(loginController, 'Email'),
                 const SizedBox(height: 16),
                 _buildTextField(passwordController, 'Password', obscure: true),

@@ -44,7 +44,7 @@ class _SignupState extends State<Signup> {
       await prefs.setString('user_name', _name.text.trim());
 
       _showToast("User registered successfully!");
-      Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => HomePage1()));
+      Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => LoginPage()));
     } catch (e) {
       print("⚠️ Error saving user: $e");
       _showToast("Something went wrong while saving.");
