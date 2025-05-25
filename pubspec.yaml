@@ -40,7 +40,7 @@ dependencies:
 
   # Toast notifications
   fluttertoast: ^8.2.8
-
+  uuid: ^4.0.0
 
   # Profile UI theme switcher
   animated_theme_switcher: ^2.0.1

@@ -12,32 +12,44 @@ class _ScanPageState extends State<ScanPage> {
   final FirebaseAuth auth = FirebaseAuth.instance;
   final FirebaseFirestore firestore = FirebaseFirestore.instance;
 
-  String qrCodeResult = "";
+  String statusMessage = "No QR scanned yet.";
 
   Future<void> scanQRCode() async {
     try {
       final ScanResult result = await BarcodeScanner.scan();
-      final User? firebaseUser = auth.currentUser;
+      final scannedData = result.rawContent;
 
-      final scannedData = result.rawContent.isNotEmpty
-          ? result.rawContent
-          : "UserXYZ - UserXYZ@gmail.com";
+      if (scannedData.isEmpty) {
+        setState(() {
+          statusMessage = "⚠️ Scan failed or cancelled.";
+        });
+        return;
+      }
 
-      setState(() {
-        qrCodeResult = scannedData;
-      });
+      final spotMatch = RegExp(r'spot:(\d+)').firstMatch(scannedData);
+      final spot = spotMatch?.group(1);
 
-      if (firebaseUser != null) {
-        await firestore
-            .collection("parking")
-            .doc(firebaseUser.uid)
-            .set({
-          "User info": qrCodeResult,
+      if (spot != null) {
+        final User? user = auth.currentUser;
+
+        if (user != null) {
+          await firestore.collection("parking").doc(user.uid).set({
+            "spot": spot,
+            "scanned_at": FieldValue.serverTimestamp(),
+          });
+        }
+
+        setState(() {
+          statusMessage = "✅ QR Code scanned successfully. It belongs to Spot #$spot";
+        });
+      } else {
+        setState(() {
+          statusMessage = "⚠️ Spot number not found in QR.";
         });
       }
     } catch (e) {
       setState(() {
-        qrCodeResult = "Scan failed or cancelled.";
+        statusMessage = "⚠️ Scan failed or cancelled.";
       });
     }
   }
@@ -47,56 +59,43 @@ class _ScanPageState extends State<ScanPage> {
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Colors.black,
-        title: const Text(
-          "Scanner",
-          style: TextStyle(fontFamily: 'montserrat1'),
-        ),
+        title: const Text("Scanner", style: TextStyle(fontFamily: 'montserrat1')),
         centerTitle: true,
       ),
       body: Padding(
-        padding: const EdgeInsets.all(20.0),
+        padding: const EdgeInsets.all(20),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: <Widget>[
-            const Text(
-              "RESULT:",
-              style: TextStyle(
-                fontFamily: 'montserrat',
-                fontSize: 25.0,
-                fontWeight: FontWeight.bold,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 10),
+          children: [
             Text(
-              qrCodeResult.isNotEmpty ? qrCodeResult : "No QR scanned yet.",
-              style: const TextStyle(fontSize: 20.0),
+              statusMessage,
+              style: const TextStyle(fontSize: 20, color: Colors.white),
               textAlign: TextAlign.center,
             ),
-            const SizedBox(height: 20.0),
+            const SizedBox(height: 30),
             TextButton(
               onPressed: scanQRCode,
               style: TextButton.styleFrom(
-                padding: const EdgeInsets.all(15.0),
+                padding: const EdgeInsets.all(15),
+                backgroundColor: Colors.yellow[700],
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(20.0),
-                  side: const BorderSide(color: Colors.black, width: 3.0),
+                  borderRadius: BorderRadius.circular(20),
                 ),
-                backgroundColor: Colors.white,
               ),
               child: const Text(
                 "Open Scanner",
                 style: TextStyle(
                   fontFamily: 'montserrat',
-                  color: Colors.black,
                   fontWeight: FontWeight.bold,
+                  color: Colors.black,
+                  fontSize: 16,
                 ),
               ),
             ),
           ],
         ),
       ),
+      backgroundColor: Colors.black,
     );
   }
 }

@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:qr_flutter/qr_flutter.dart';
+import 'package:uuid/uuid.dart';
 
 class ReservePage extends StatefulWidget {
   final String userId;
@@ -17,7 +18,7 @@ class _ReservePageState extends State<ReservePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black, // 🖤 Background
+      backgroundColor: Colors.black,
       appBar: AppBar(
         title: const Text("Select Reservation Time"),
         backgroundColor: Colors.black,
@@ -26,7 +27,6 @@ class _ReservePageState extends State<ReservePage> {
       ),
       body: Stack(
         children: [
-          // 🚗 Background car image
           Align(
             alignment: Alignment.bottomCenter,
             child: FractionallySizedBox(
@@ -39,12 +39,10 @@ class _ReservePageState extends State<ReservePage> {
               ),
             ),
           ),
-
-          // ⬆️ Foreground content pushed up
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
             child: Column(
-              mainAxisAlignment: MainAxisAlignment.start, // push content up
+              mainAxisAlignment: MainAxisAlignment.start,
               children: [
                 const SizedBox(height: 40),
                 ElevatedButton.icon(
@@ -54,65 +52,53 @@ class _ReservePageState extends State<ReservePage> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.amber,
                     foregroundColor: Colors.black,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 28,
-                      vertical: 14,
-                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(30),
                     ),
-                    textStyle: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    textStyle:
+                        const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                   ),
                 ),
                 const SizedBox(height: 24),
                 SizedBox(
-  height: 30,
-  child: Center(
-    child: selectedTime != null
-        ? Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.access_time_filled, color: Colors.white),
-              const SizedBox(width: 8),
-              Text(
-                selectedTime!.format(context),
-                style: const TextStyle(
-                    fontSize: 20,
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold),
-              ),
-            ],
-          )
-        : const Text(
-            "No time selected",
-            style: TextStyle(color: Colors.grey, fontSize: 16),
-          ),
-  ),
-),
+                  height: 30,
+                  child: Center(
+                    child: selectedTime != null
+                        ? Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.access_time_filled, color: Colors.white),
+                              const SizedBox(width: 8),
+                              Text(
+                                selectedTime!.format(context),
+                                style: const TextStyle(
+                                    fontSize: 20,
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.bold),
+                              ),
+                            ],
+                          )
+                        : const Text(
+                            "No time selected",
+                            style: TextStyle(color: Colors.grey, fontSize: 16),
+                          ),
+                  ),
+                ),
                 const SizedBox(height: 40),
                 ElevatedButton(
                   onPressed: selectedTime != null ? _attemptReservation : null,
                   child: const Text("Confirm Reservation"),
                   style: ElevatedButton.styleFrom(
                     backgroundColor:
-                        selectedTime != null
-                            ? Colors.yellow[700]
-                            : Colors.grey[800],
+                        selectedTime != null ? Colors.yellow[700] : Colors.grey[800],
                     foregroundColor: Colors.black,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 40,
-                      vertical: 18,
-                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 18),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(30),
                     ),
-                    textStyle: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    textStyle:
+                        const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                   ),
                 ),
               ],
@@ -167,11 +153,29 @@ class _ReservePageState extends State<ReservePage> {
     }
 
     try {
-      final availableSpots =
-          await FirebaseFirestore.instance
-              .collection('spots')
-              .where('occupied', isEqualTo: false)
-              .get();
+      final existing = await FirebaseFirestore.instance
+          .collection('spots')
+          .where('occupied', isEqualTo: true)
+          .where('user_id', isEqualTo: widget.userId)
+          .get();
+
+      if (existing.docs.isNotEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'You already have a reservation.',
+              style: TextStyle(color: Colors.black),
+            ),
+            backgroundColor: Colors.orange,
+          ),
+        );
+        return;
+      }
+
+      final availableSpots = await FirebaseFirestore.instance
+          .collection('spots')
+          .where('occupied', isEqualTo: false)
+          .get();
 
       if (availableSpots.docs.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -189,19 +193,30 @@ class _ReservePageState extends State<ReservePage> {
       final spotDoc = availableSpots.docs.first;
       final spotId = spotDoc.id;
       final spotNum = spotDoc['spot_number'];
-      final reservationTime =
-          "${selectedTime!.hour.toString().padLeft(2, '0')}:${selectedTime!.minute.toString().padLeft(2, '0')}";
+      final nowDate = DateTime.now();
+      final reservationDateTime = DateTime(
+        nowDate.year,
+        nowDate.month,
+        nowDate.day,
+        selectedTime!.hour,
+        selectedTime!.minute,
+      ).toUtc();
 
+      final uuid = const Uuid().v4();
+      final generationTime = DateTime.now().toUtc().toIso8601String();
       final qrContent =
-          "user_id:${widget.userId}\nspot_number:$spotNum\nreservation:$reservationTime";
+          "reservation_id:$uuid\nuser_id:${widget.userId}\nspot:$spotNum\nat:$reservationDateTime\ngenerated_at:$generationTime";
       final qrBase64 = await _generateQrBase64(qrContent);
 
       await FirebaseFirestore.instance.collection('spots').doc(spotId).update({
         'occupied': true,
         'user_id': widget.userId,
-        'reservation_time': reservationTime,
+        'reservation_time': selectedTime!.format(context),
         'timestamp': FieldValue.serverTimestamp(),
         'qr_code': qrBase64,
+        'reservation_datetime': reservationDateTime.toIso8601String(),
+        'reservation_id': uuid,
+        'generated_at': generationTime,
       });
 
       ScaffoldMessenger.of(context).showSnackBar(

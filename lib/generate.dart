@@ -8,7 +8,7 @@ class GeneratePage extends StatefulWidget {
 }
 
 class GeneratePageState extends State<GeneratePage> {
-  String qrData = "Code Shinobis"; // Default placeholder
+  String qrData = "Nour"; // Default placeholder
 
   Future<void> _loadUserData() async {
     final prefs = await SharedPreferences.getInstance();
