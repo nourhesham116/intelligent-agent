@@ -1,0 +1,67 @@
+{
+  "project_info": {
+    "project_number": "113409541083",
+    "project_id": "agent-5ddc0",
+    "storage_bucket": "agent-5ddc0.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:113409541083:android:d4dc9ac8c8e3c640f65dfe",
+        "android_client_info": {
+          "package_name": "com.example.escapecode_mobile"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCRNkR8xWSC6Ax9MWXhjptT_3cDK4BJptY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:113409541083:android:9dbb534010797f8ef65dfe",
+        "android_client_info": {
+          "package_name": "com.example.smartpark"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCRNkR8xWSC6Ax9MWXhjptT_3cDK4BJptY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:113409541083:android:04033e28d432a508f65dfe",
+        "android_client_info": {
+          "package_name": "com.package.smartpark0"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCRNkR8xWSC6Ax9MWXhjptT_3cDK4BJptY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
