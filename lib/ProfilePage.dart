@@ -4,6 +4,8 @@ import 'package:fluttertoast/fluttertoast.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'main.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'login_page.dart';
+
 
 class ProfilePage extends StatefulWidget {
   @override
@@ -87,7 +89,7 @@ class ProfileState extends State<ProfilePage> {
                       await FirebaseAuth.instance.signOut();
                       Navigator.pushReplacement(
                         context,
-                        MaterialPageRoute(builder: (context) => MyApp()),
+                        MaterialPageRoute(builder: (context) => LoginPage()),
                       );
                     },
                     child: const Text('Log out', style: TextStyle(fontFamily: 'montserrat1')),
