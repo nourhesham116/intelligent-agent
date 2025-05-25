@@ -9,8 +9,13 @@ class WelcomeHomePage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+<<<<<<< HEAD
         backgroundColor: Colors.black.withOpacity(0.8),
         title: const Text('CODE SHINOBIS', style: TextStyle(fontFamily: 'painter')),
+=======
+        backgroundColor: Colors.black,
+        title: const Text('SMART PARK', style: TextStyle(fontFamily: 'painter')),
+>>>>>>> 527059ff36d44948e425a49bd822052f56edfd17
         actions: [
           TextButton(
             onPressed: () {
