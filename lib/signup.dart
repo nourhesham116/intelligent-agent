@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'homePage1.dart';
+import 'login_page.dart'; // ⬅️ Add login page route
 
 class Signup extends StatefulWidget {
   @override
@@ -28,14 +30,20 @@ class _SignupState extends State<Signup> {
     }
 
     try {
-      await _firestore.collection("users").add({
+      final newUser = await _firestore.collection("users").add({
         "name": _name.text.trim(),
         "email": _email.text.trim(),
-        "password": _password.text.trim(), // ⚠️ Storing plain text password is NOT secure
+        "password": _password.text.trim(), // ⚠️ Storing in plain text is insecure
         "createdAt": FieldValue.serverTimestamp(),
       });
 
-      _showToast("User saved successfully!");
+      // 🔐 Save login state locally
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('user_id', newUser.id);
+      await prefs.setString('user_email', _email.text.trim());
+      await prefs.setString('user_name', _name.text.trim());
+
+      _showToast("User registered successfully!");
       Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => HomePage1()));
     } catch (e) {
       print("⚠️ Error saving user: $e");
@@ -57,25 +65,69 @@ class _SignupState extends State<Signup> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('Sign Up')),
-      body: Padding(
-        padding: const EdgeInsets.all(16),
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        title: const Text('Sign Up'),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(24),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            TextField(controller: _name, decoration: InputDecoration(labelText: 'Name')),
-            SizedBox(height: 10),
-            TextField(controller: _email, decoration: InputDecoration(labelText: 'Email')),
-            SizedBox(height: 10),
-            TextField(controller: _password, obscureText: true, decoration: InputDecoration(labelText: 'Password')),
-            SizedBox(height: 10),
-            TextField(controller: _confirm, obscureText: true, decoration: InputDecoration(labelText: 'Confirm Password')),
-            SizedBox(height: 20),
+            _buildField(_name, 'Name'),
+            const SizedBox(height: 14),
+            _buildField(_email, 'Email'),
+            const SizedBox(height: 14),
+            _buildField(_password, 'Password', obscure: true),
+            const SizedBox(height: 14),
+            _buildField(_confirm, 'Confirm Password', obscure: true),
+            const SizedBox(height: 24),
             ElevatedButton(
               onPressed: _signUp,
-              child: Text('Submit'),
-              style: ElevatedButton.styleFrom(minimumSize: Size.fromHeight(45)),
+              child: const Text('Submit'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.amber,
+                foregroundColor: Colors.black,
+                minimumSize: const Size.fromHeight(48),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+              ),
             ),
+            const SizedBox(height: 20),
+            Center(
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Text("Already have an account?", style: TextStyle(color: Colors.white70)),
+                  TextButton(
+                    onPressed: () {
+                      Navigator.push(context, MaterialPageRoute(builder: (_) => const LoginPage()));
+                    },
+                    child: const Text("Login", style: TextStyle(color: Colors.amber, fontWeight: FontWeight.bold)),
+                  )
+                ],
+              ),
+            )
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildField(TextEditingController controller, String label, {bool obscure = false}) {
+    return TextField(
+      controller: controller,
+      obscureText: obscure,
+      style: const TextStyle(color: Colors.white),
+      decoration: InputDecoration(
+        labelText: label,
+        labelStyle: const TextStyle(color: Colors.white70),
+        enabledBorder: const UnderlineInputBorder(
+          borderSide: BorderSide(color: Colors.white38),
+        ),
+        focusedBorder: const UnderlineInputBorder(
+          borderSide: BorderSide(color: Colors.amber),
         ),
       ),
     );

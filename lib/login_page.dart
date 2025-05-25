@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'homePage1.dart';
 import 'forgotPass.dart';
+import 'signup.dart'; // ✅ for navigation
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -13,8 +14,8 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
-  TextEditingController loginController = TextEditingController();
-  TextEditingController passwordController = TextEditingController();
+  final TextEditingController loginController = TextEditingController();
+  final TextEditingController passwordController = TextEditingController();
 
   Future<void> _signIn() async {
     final email = loginController.text.trim();
@@ -50,11 +51,6 @@ class _LoginPageState extends State<LoginPage> {
       await prefs.setString('user_name', userData['name']);
       await prefs.setString('user_id', userDoc.id);
 
-      print("✅ Login success, stored prefs:");
-      print("user_id: ${prefs.getString('user_id')}");
-      print("user_email: ${prefs.getString('user_email')}");
-      print("user_name: ${prefs.getString('user_name')}");
-
       _showToast("Login successful!");
 
       Navigator.pushReplacement(
@@ -72,7 +68,7 @@ class _LoginPageState extends State<LoginPage> {
       msg: message,
       toastLength: Toast.LENGTH_LONG,
       gravity: ToastGravity.BOTTOM,
-      backgroundColor: Colors.blue,
+      backgroundColor: Colors.black87,
       textColor: Colors.white,
       fontSize: 16.0,
     );
@@ -81,53 +77,92 @@ class _LoginPageState extends State<LoginPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-        appBar: AppBar(
-          backgroundColor: Colors.black,
-          title: const Text('Sign In', style: TextStyle(fontFamily: 'montserrat1')),
-        ),
-        body: Padding(
-            padding: const EdgeInsets.all(10),
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        title: const Text('Sign In', style: TextStyle(fontFamily: 'montserrat1')),
+        centerTitle: true,
+      ),
+      body: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 400),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24.0),
             child: ListView(
-              children: <Widget>[
-                const SizedBox(height: 20),
-                TextField(
-                  controller: loginController,
-                  decoration: const InputDecoration(
-                    border: OutlineInputBorder(),
-                    labelText: 'User email',
+              shrinkWrap: true,
+              children: [
+                const SizedBox(height: 40),
+                _buildTextField(loginController, 'Email'),
+                const SizedBox(height: 16),
+                _buildTextField(passwordController, 'Password', obscure: true),
+                const SizedBox(height: 8),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton(
+                    onPressed: () {
+                      Navigator.push(context, MaterialPageRoute(builder: (_) => ForgotPass()));
+                    },
+                    child: const Text(
+                      'Forgot Password?',
+                      style: TextStyle(color: Colors.amber),
+                    ),
                   ),
                 ),
                 const SizedBox(height: 10),
-                TextField(
-                  obscureText: true,
-                  controller: passwordController,
-                  decoration: const InputDecoration(
-                    border: OutlineInputBorder(),
-                    labelText: 'Password',
-                  ),
-                ),
-                TextButton(
-                  onPressed: () {
-                    Navigator.push(context, MaterialPageRoute(builder: (context) => ForgotPass()));
-                  },
-                  child: const Text('Forgot Password', style: TextStyle(fontFamily: 'montserrat')),
-                ),
-                Container(
-                  height: 50,
-                  padding: const EdgeInsets.symmetric(horizontal: 10),
-                  child: ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.black,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(30.0),
-                      ),
+                ElevatedButton(
+                  onPressed: _signIn,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.amber,
+                    foregroundColor: Colors.black,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(30.0),
                     ),
-                    onPressed: _signIn,
-                    child: const Text('Login', style: TextStyle(fontFamily: 'montserrat1')),
+                  ),
+                  child: const Text(
+                    'Login',
+                    style: TextStyle(fontFamily: 'montserrat1', fontSize: 16, fontWeight: FontWeight.bold),
                   ),
                 ),
+                const SizedBox(height: 20),
+                Center(
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Text("Don't have an account?", style: TextStyle(color: Colors.white70)),
+                      TextButton(
+                        onPressed: () {
+                          Navigator.push(context, MaterialPageRoute(builder: (_) => Signup()));
+                        },
+                        child: const Text("Sign Up", style: TextStyle(color: Colors.amber, fontWeight: FontWeight.bold)),
+                      ),
+                    ],
+                  ),
+                )
               ],
-            )));
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTextField(TextEditingController controller, String label, {bool obscure = false}) {
+    return TextField(
+      controller: controller,
+      obscureText: obscure,
+      style: const TextStyle(color: Colors.white),
+      decoration: InputDecoration(
+        labelText: label,
+        labelStyle: const TextStyle(color: Colors.white70),
+        enabledBorder: const OutlineInputBorder(
+          borderSide: BorderSide(color: Colors.white24),
+        ),
+        focusedBorder: const OutlineInputBorder(
+          borderSide: BorderSide(color: Colors.amber),
+        ),
+      ),
+    );
   }
 }

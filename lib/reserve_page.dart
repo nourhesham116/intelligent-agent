@@ -17,42 +17,108 @@ class _ReservePageState extends State<ReservePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.black, // 🖤 Background
       appBar: AppBar(
         title: const Text("Select Reservation Time"),
         backgroundColor: Colors.black,
+        elevation: 0,
+        centerTitle: true,
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            ElevatedButton.icon(
-              onPressed: _pickTime,
-              icon: const Icon(Icons.access_time),
-              label: const Text("Pick Time"),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.black,
-                foregroundColor: Colors.white,
+      body: Stack(
+        children: [
+          // 🚗 Background car image
+          Align(
+            alignment: Alignment.bottomCenter,
+            child: FractionallySizedBox(
+              widthFactor: 1.0,
+              heightFactor: 0.8,
+              child: Image.asset(
+                'assets/images/yellow_car.png',
+                fit: BoxFit.cover,
+                alignment: Alignment.topCenter,
               ),
             ),
-            const SizedBox(height: 20),
-            if (selectedTime != null)
+          ),
+
+          // ⬆️ Foreground content pushed up
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.start, // push content up
+              children: [
+                const SizedBox(height: 40),
+                ElevatedButton.icon(
+                  onPressed: _pickTime,
+                  icon: const Icon(Icons.access_time_rounded),
+                  label: const Text("Pick Time"),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.amber,
+                    foregroundColor: Colors.black,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 28,
+                      vertical: 14,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(30),
+                    ),
+                    textStyle: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 24),
+                SizedBox(
+  height: 30,
+  child: Center(
+    child: selectedTime != null
+        ? Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(Icons.access_time_filled, color: Colors.white),
+              const SizedBox(width: 8),
               Text(
-                "Selected: ${selectedTime!.format(context)}",
-                style: const TextStyle(fontSize: 18),
+                selectedTime!.format(context),
+                style: const TextStyle(
+                    fontSize: 20,
+                    color: Colors.white,
+                    fontWeight: FontWeight.bold),
               ),
-            const SizedBox(height: 40),
-            ElevatedButton(
-              onPressed: selectedTime == null ? null : _attemptReservation,
-              child: const Text("Confirm Reservation"),
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 16),
-                backgroundColor: Colors.green,
-                foregroundColor: Colors.white,
-              ),
-            )
-          ],
-        ),
+            ],
+          )
+        : const Text(
+            "No time selected",
+            style: TextStyle(color: Colors.grey, fontSize: 16),
+          ),
+  ),
+),
+                const SizedBox(height: 40),
+                ElevatedButton(
+                  onPressed: selectedTime != null ? _attemptReservation : null,
+                  child: const Text("Confirm Reservation"),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor:
+                        selectedTime != null
+                            ? Colors.yellow[700]
+                            : Colors.grey[800],
+                    foregroundColor: Colors.black,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 40,
+                      vertical: 18,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(30),
+                    ),
+                    textStyle: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -62,6 +128,18 @@ class _ReservePageState extends State<ReservePage> {
     final picked = await showTimePicker(
       context: context,
       initialTime: now,
+      builder: (context, child) {
+        return Theme(
+          data: ThemeData.dark().copyWith(
+            timePickerTheme: TimePickerThemeData(
+              backgroundColor: Colors.grey[900],
+              hourMinuteTextColor: Colors.yellow,
+              dialHandColor: Colors.yellow[700],
+            ),
+          ),
+          child: child!,
+        );
+      },
     );
 
     if (picked != null) {
@@ -77,22 +155,33 @@ class _ReservePageState extends State<ReservePage> {
 
     if (diffMinutes > 60) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('You can only reserve within 1 hour before your parking time')),
+        const SnackBar(
+          content: Text(
+            'You can only reserve within 1 hour before your parking time',
+            style: TextStyle(color: Colors.black),
+          ),
+          backgroundColor: Colors.yellow,
+        ),
       );
       return;
     }
 
     try {
-      print("🔍 Searching for available spots...");
-      final availableSpots = await FirebaseFirestore.instance
-          .collection('spots')
-          .where('occupied', isEqualTo: false)
-          .get();
+      final availableSpots =
+          await FirebaseFirestore.instance
+              .collection('spots')
+              .where('occupied', isEqualTo: false)
+              .get();
 
       if (availableSpots.docs.isEmpty) {
-        print("❌ No free spots available.");
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('No free spots available')),
+          const SnackBar(
+            content: Text(
+              'No free spots available',
+              style: TextStyle(color: Colors.black),
+            ),
+            backgroundColor: Colors.yellow,
+          ),
         );
         return;
       }
@@ -115,18 +204,27 @@ class _ReservePageState extends State<ReservePage> {
         'qr_code': qrBase64,
       });
 
-      print("✅ Reservation complete for spot $spotNum");
-
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Spot $spotNum reserved successfully')),
+        SnackBar(
+          content: Text(
+            'Spot $spotNum reserved successfully',
+            style: const TextStyle(color: Colors.black),
+          ),
+          backgroundColor: Colors.yellow[700],
+        ),
       );
 
-      Navigator.pop(context); // Go back to ParkingLotPage
-    } catch (e, stacktrace) {
+      Navigator.pop(context);
+    } catch (e) {
       print("❌ ERROR: $e");
-      print("❌ STACKTRACE: $stacktrace");
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Failed to reserve a spot')),
+        const SnackBar(
+          content: Text(
+            'Failed to reserve a spot',
+            style: TextStyle(color: Colors.black),
+          ),
+          backgroundColor: Colors.redAccent,
+        ),
       );
     }
   }

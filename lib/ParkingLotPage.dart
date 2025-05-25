@@ -29,6 +29,7 @@ class _ParkingLotPageState extends State<ParkingLotPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.black, // 🔲 BLACK BACKGROUND
       appBar: AppBar(
         title: const Text('Parking Lot'),
         backgroundColor: Colors.black,
@@ -42,15 +43,15 @@ class _ParkingLotPageState extends State<ParkingLotPage> {
                 stream: FirebaseFirestore.instance.collection('spots').snapshots(),
                 builder: (context, snapshot) {
                   if (snapshot.hasError) {
-                    return const Center(child: Text('Error loading spots'));
+                    return const Center(child: Text('Error loading spots', style: TextStyle(color: Colors.white)));
                   }
                   if (!snapshot.hasData) {
-                    return const Center(child: CircularProgressIndicator());
+                    return const Center(child: CircularProgressIndicator(color: Colors.yellow));
                   }
 
                   final spots = snapshot.data!.docs;
 
-                  // 🔍 Debug print
+                  // 🔍 Debug
                   print("🔥 Total documents: ${spots.length}");
                   for (var doc in spots) {
                     print("➡️ Spot: ${doc['spot_number']} | occupied: ${doc['occupied']}");
@@ -64,10 +65,9 @@ class _ParkingLotPageState extends State<ParkingLotPage> {
 
                   return GridView.count(
                     crossAxisCount: 2,
-                    mainAxisSpacing: 10,
-                    crossAxisSpacing: 10,
-                    children:
-                        limitedSpots.map((spot) => _buildSpotTile(spot)).toList(),
+                    mainAxisSpacing: 14,
+                    crossAxisSpacing: 14,
+                    children: limitedSpots.map((spot) => _buildSpotTile(spot)).toList(),
                   );
                 },
               ),
@@ -83,11 +83,12 @@ class _ParkingLotPageState extends State<ParkingLotPage> {
                 );
               },
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.black,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 20),
+                backgroundColor: Colors.yellow[700],
+                foregroundColor: Colors.black,
+                padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 18),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
-              child: const Text("Reserve a Spot", style: TextStyle(fontSize: 18)),
+              child: const Text("Reserve a Spot", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             )
           ],
         ),
@@ -101,18 +102,31 @@ class _ParkingLotPageState extends State<ParkingLotPage> {
     final String userId = spot['user_id'] ?? '';
 
     Color bgColor;
+    Color iconColor;
+    Color borderColor;
+
     if (occupied) {
-      bgColor = (userId == currentUserId) ? Colors.blue[100]! : Colors.red[100]!;
+      if (userId == currentUserId) {
+        bgColor = Colors.yellow.shade800.withOpacity(0.3); // current user's car
+        iconColor = Colors.yellow;
+        borderColor = Colors.yellow;
+      } else {
+        bgColor = Colors.red.shade900.withOpacity(0.3);
+        iconColor = Colors.redAccent;
+        borderColor = Colors.red;
+      }
     } else {
-      bgColor = Colors.green[100]!;
+      bgColor = Colors.green.shade900.withOpacity(0.2);
+      iconColor = Colors.greenAccent;
+      borderColor = Colors.green;
     }
 
     return Container(
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
         color: bgColor,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: Colors.black),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: borderColor, width: 2),
       ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -120,12 +134,25 @@ class _ParkingLotPageState extends State<ParkingLotPage> {
           Icon(
             occupied ? Icons.directions_car : Icons.local_parking,
             size: 40,
-            color: occupied ? Colors.red : Colors.green,
+            color: iconColor,
           ),
           const SizedBox(height: 8),
-          Text('Spot $spotNum', style: const TextStyle(fontWeight: FontWeight.bold)),
+          Text(
+            'Spot $spotNum',
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              color: Colors.white,
+              fontSize: 16,
+            ),
+          ),
           const SizedBox(height: 4),
-          Text(occupied ? 'Occupied' : 'Free'),
+          Text(
+            occupied ? 'Occupied' : 'Free',
+            style: TextStyle(
+              color: occupied ? Colors.red[200] : Colors.greenAccent,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
         ],
       ),
     );

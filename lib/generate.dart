@@ -33,46 +33,59 @@ class GeneratePageState extends State<GeneratePage> {
   }
 
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      resizeToAvoidBottomInset: false,
-      appBar: AppBar(
-        backgroundColor: Colors.black,
-        title: const Text(
-          'Your Unique QR Code',
-          style: TextStyle(fontFamily: 'montserrat1'),
-        ),
+  @override
+Widget build(BuildContext context) {
+  return Scaffold(
+    backgroundColor: Colors.black, // 🖤 Background
+    resizeToAvoidBottomInset: false,
+    appBar: AppBar(
+      backgroundColor: Colors.transparent,
+      elevation: 0,
+      title: const Text(
+        'Your Unique QR Code',
+        style: TextStyle(fontFamily: 'montserrat1', color: Colors.amber), // 🟡 Yellow title
       ),
-      body: Padding(
+      centerTitle: true,
+    ),
+    body: Center(
+      child: Padding(
         padding: const EdgeInsets.all(20.0),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: <Widget>[
-            QrImageView(
-              data: qrData,
-              version: QrVersions.auto,
-              size: 200.0,
-              backgroundColor: Colors.white,
+            Container(
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              padding: const EdgeInsets.all(12),
+              child: QrImageView(
+                data: qrData,
+                version: QrVersions.auto,
+                size: 200.0,
+                backgroundColor: Colors.white,
+              ),
             ),
-            const SizedBox(height: 40.0),
+            const SizedBox(height: 30),
             const Text(
               "User QR Code Generator",
               textAlign: TextAlign.center,
               style: TextStyle(
                 fontFamily: 'montserrat',
                 fontSize: 20.0,
+                color: Colors.amber, // 🟡 Yellow
+                fontWeight: FontWeight.bold,
               ),
             ),
-            const SizedBox(height: 20.0),
+            const SizedBox(height: 20),
             TextButton(
               onPressed: _loadUserData,
               style: TextButton.styleFrom(
-                padding: const EdgeInsets.all(15.0),
-                backgroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
+                backgroundColor: Colors.amber, // 🟡 Yellow button
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(20.0),
-                  side: const BorderSide(color: Colors.black, width: 3.0),
+                  borderRadius: BorderRadius.circular(30.0),
                 ),
               ),
               child: const Text(
@@ -87,6 +100,7 @@ class GeneratePageState extends State<GeneratePage> {
           ],
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 }

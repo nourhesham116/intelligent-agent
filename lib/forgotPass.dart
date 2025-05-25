@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:fluttertoast/fluttertoast.dart';
 
 class ForgotPass extends StatefulWidget {
   @override
@@ -9,26 +8,40 @@ class ForgotPass extends StatefulWidget {
 class ForgotPassState extends State<ForgotPass> {
   final TextEditingController emailController = TextEditingController();
 
+  void _showMessage(String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(msg),
+        backgroundColor: Colors.amber,
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.black,
       appBar: AppBar(
-        backgroundColor: Colors.black,
-        title: const Text('CODE SHINOBIS', style: TextStyle(fontFamily: 'painter')),
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        title: const Text(
+          'SmartPark',
+          style: TextStyle(fontFamily: 'painter'),
+        ),
       ),
       body: Padding(
-        padding: const EdgeInsets.all(10),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 30),
         child: ListView(
           children: <Widget>[
-            const SizedBox(height: 10),
             const Center(
               child: Text(
                 'Smart Parking System',
                 style: TextStyle(
                   fontFamily: 'montserrat1',
-                  color: Colors.black,
-                  fontWeight: FontWeight.w500,
-                  fontSize: 30,
+                  color: Colors.amber,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 26,
                 ),
               ),
             ),
@@ -36,15 +49,23 @@ class ForgotPassState extends State<ForgotPass> {
             const Center(
               child: Text(
                 'Forgot Password',
-                style: TextStyle(fontFamily: 'montserrat', fontSize: 20),
+                style: TextStyle(
+                  fontFamily: 'montserrat',
+                  fontSize: 20,
+                  color: Colors.white,
+                ),
               ),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 40),
             TextField(
               controller: emailController,
-              decoration: const InputDecoration(
-                border: OutlineInputBorder(),
+              style: const TextStyle(color: Colors.white),
+              decoration: InputDecoration(
+                filled: true,
+                fillColor: Colors.white10,
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                 labelText: 'Please enter your email',
+                labelStyle: const TextStyle(color: Colors.amber),
               ),
             ),
             const SizedBox(height: 30),
@@ -52,38 +73,26 @@ class ForgotPassState extends State<ForgotPass> {
               height: 55,
               child: ElevatedButton(
                 style: ElevatedButton.styleFrom(
-                 backgroundColor: Colors.black,
-foregroundColor: Colors.white,
-
+                  backgroundColor: Colors.amber,
+                  foregroundColor: Colors.black,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(30.0),
-                    side: const BorderSide(color: Colors.black),
                   ),
                 ),
                 onPressed: () {
-                  if (emailController.text.trim().isNotEmpty) {
-                    Fluttertoast.showToast(
-                      msg: "OTP sent!",
-                      toastLength: Toast.LENGTH_LONG,
-                      gravity: ToastGravity.BOTTOM,
-                      backgroundColor: Colors.blue,
-                      textColor: Colors.white,
-                      fontSize: 16.0,
-                    );
+                  final email = emailController.text.trim();
+                  if (email.isNotEmpty) {
+                    _showMessage("OTP sent to $email!");
                   } else {
-                    Fluttertoast.showToast(
-                      msg: "Please enter an email id!",
-                      toastLength: Toast.LENGTH_LONG,
-                      gravity: ToastGravity.BOTTOM,
-                      backgroundColor: Colors.blue,
-                      textColor: Colors.white,
-                      fontSize: 16.0,
-                    );
+                    _showMessage("Please enter an email address.");
                   }
                 },
                 child: const Text(
                   'Send OTP',
-                  style: TextStyle(fontFamily: 'montserrat1'),
+                  style: TextStyle(
+                    fontFamily: 'montserrat1',
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
             ),
