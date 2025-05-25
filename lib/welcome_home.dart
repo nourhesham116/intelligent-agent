@@ -9,7 +9,7 @@ class WelcomeHomePage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: Colors.black,
+        backgroundColor: Colors.black.withOpacity(0.8),
         title: const Text('CODE SHINOBIS', style: TextStyle(fontFamily: 'painter')),
         actions: [
           TextButton(
@@ -26,11 +26,29 @@ class WelcomeHomePage extends StatelessWidget {
           ),
         ],
       ),
-      body: const Center(
-        child: Text(
-          'Welcome to the Smart Parking System!',
-          style: TextStyle(fontSize: 24, fontFamily: 'montserrat1'),
-        ),
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          Image.asset(
+            'assets/images/smart_parking_bg.png',
+            fit: BoxFit.cover,
+          ),
+          Container(
+            color: Colors.black.withOpacity(0.4), // optional dark overlay
+          ),
+          const Center(
+            child: Text(
+              'Welcome to the Smart Parking System!',
+              style: TextStyle(
+                fontSize: 26,
+                fontFamily: 'montserrat1',
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ),
+        ],
       ),
     );
   }
