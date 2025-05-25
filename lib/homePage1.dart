@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'generate.dart';
 import 'ProfilePage.dart';
-import 'ParkingLotPage.dart'; // ✅ Make sure this file exists
+import 'ParkingLotPage.dart';
 
 class HomePage1 extends StatefulWidget {
   @override
@@ -13,13 +12,23 @@ class HomePage1 extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage1> {
-  final FirebaseAuth auth = FirebaseAuth.instance;
-  final FirebaseFirestore firestore = FirebaseFirestore.instance;
+  String? userEmail;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserEmail();
+  }
+
+  Future<void> _loadUserEmail() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      userEmail = prefs.getString('user_email');
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
-    final User? user = auth.currentUser;
-
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Colors.black,
@@ -29,24 +38,30 @@ class _HomePageState extends State<HomePage1> {
         ),
         centerTitle: true,
         actions: [
+          if (userEmail != null)
+            IconButton(
+              icon: const Icon(Icons.account_circle),
+              tooltip: 'Profile',
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => ProfilePage()),
+                );
+              },
+            ),
           IconButton(
             icon: const Icon(Icons.settings),
             tooltip: 'Settings',
             onPressed: () {
               Fluttertoast.showToast(
-                msg: user == null
+                msg: userEmail == null
                     ? "No user logged in!"
-                    : "Logged in as: ${user.email}",
+                    : "Logged in as: $userEmail",
                 toastLength: Toast.LENGTH_LONG,
                 gravity: ToastGravity.BOTTOM,
                 backgroundColor: Colors.blue,
                 textColor: Colors.white,
                 fontSize: 16.0,
-              );
-
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => ProfilePage()),
               );
             },
           ),
@@ -61,7 +76,7 @@ class _HomePageState extends State<HomePage1> {
             const SizedBox(height: 40.0),
             customButton("Reservation", () {
               Navigator.of(context).push(MaterialPageRoute(
-                builder: (context) => ParkingLotPage(), // ✅ Opens the parking lot
+                builder: (context) => ParkingLotPage(),
               ));
             }),
             const SizedBox(height: 20.0),

@@ -26,7 +26,7 @@ class _LoginPageState extends State<LoginPage> {
     }
 
     try {
-      QuerySnapshot snapshot = await FirebaseFirestore.instance
+      final snapshot = await FirebaseFirestore.instance
           .collection('users')
           .where('email', isEqualTo: email)
           .limit(1)
@@ -38,19 +38,25 @@ class _LoginPageState extends State<LoginPage> {
       }
 
       final userDoc = snapshot.docs.first;
-      final user = userDoc.data() as Map<String, dynamic>;
+      final userData = userDoc.data() as Map<String, dynamic>;
 
-      if (user['password'] != password) {
+      if (userData['password'] != password) {
         _showToast("Wrong password! Please re-check your password.");
         return;
       }
 
-      final SharedPreferences prefs = await SharedPreferences.getInstance();
-      await prefs.setString('user_email', user['email']);
-      await prefs.setString('user_name', user['name']);
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('user_email', userData['email']);
+      await prefs.setString('user_name', userData['name']);
       await prefs.setString('user_id', userDoc.id);
 
+      print("✅ Login success, stored prefs:");
+      print("user_id: ${prefs.getString('user_id')}");
+      print("user_email: ${prefs.getString('user_email')}");
+      print("user_name: ${prefs.getString('user_name')}");
+
       _showToast("Login successful!");
+
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(builder: (context) => HomePage1()),
