@@ -1,3 +1,4 @@
+import 'package:escapecode_mobile/scan.dart';
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -20,8 +21,23 @@ class _HomePageState extends State<HomePage1> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkRole();
       _loadUserInfo();
     });
+  }
+
+  Future<void> _checkRole() async {
+    final prefs = await SharedPreferences.getInstance();
+    final isAdmin = prefs.getBool('is_admin') ?? false;
+
+    if (isAdmin) {
+      // Redirect admin out of this page
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (_) => ScanPage()),
+        (route) => false,
+      );
+    }
   }
 
   Future<void> _loadUserInfo() async {
@@ -55,7 +71,10 @@ class _HomePageState extends State<HomePage1> {
         elevation: 0,
         title: Text(
           userName != null ? 'Welcome, $userName' : 'SmartPark',
-          style: const TextStyle(fontFamily: 'montserrat1'),
+          style: const TextStyle(
+            fontFamily: 'montserrat1',
+            color: Colors.white,
+          ),
         ),
         centerTitle: true,
         actions: [
@@ -75,9 +94,10 @@ class _HomePageState extends State<HomePage1> {
             tooltip: 'Settings',
             onPressed: () {
               Fluttertoast.showToast(
-                msg: userEmail == null
-                    ? "No user logged in!"
-                    : "Logged in as: $userEmail",
+                msg:
+                    userEmail == null
+                        ? "No user logged in!"
+                        : "Logged in as: $userEmail",
                 toastLength: Toast.LENGTH_SHORT,
                 gravity: ToastGravity.BOTTOM,
                 backgroundColor: Colors.blue,
@@ -131,7 +151,9 @@ class _HomePageState extends State<HomePage1> {
                       _handleAction(() {
                         Navigator.push(
                           context,
-                          MaterialPageRoute(builder: (_) => const ParkingLotPage()),
+                          MaterialPageRoute(
+                            builder: (_) => const ParkingLotPage(),
+                          ),
                         );
                       });
                     }, isYellow: true),

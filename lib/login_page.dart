@@ -19,57 +19,56 @@ class _LoginPageState extends State<LoginPage> {
   final TextEditingController passwordController = TextEditingController();
 
   Future<void> _signIn() async {
-    final email = loginController.text.trim();
-    final password = passwordController.text.trim();
+  final email = loginController.text.trim();
+  final password = passwordController.text.trim();
 
-    if (email.isEmpty || password.isEmpty) {
-      _showToast("Please enter both email and password.");
+  if (email.isEmpty || password.isEmpty) {
+    _showToast("Please enter both email and password.");
+    return;
+  }
+
+  try {
+    final snapshot = await FirebaseFirestore.instance
+        .collection('users')
+        .where('email', isEqualTo: email)
+        .limit(1)
+        .get();
+
+    if (snapshot.docs.isEmpty) {
+      _showToast("No user found for that email!");
       return;
     }
 
-    try {
-      final snapshot = await FirebaseFirestore.instance
-          .collection('users')
-          .where('email', isEqualTo: email)
-          .limit(1)
-          .get();
+    final userDoc = snapshot.docs.first;
+    final userData = userDoc.data() as Map<String, dynamic>;
 
-      if (snapshot.docs.isEmpty) {
-        _showToast("No user found for that email!");
-        return;
-      }
-
-      final userDoc = snapshot.docs.first;
-      final userData = userDoc.data() as Map<String, dynamic>;
-
-      if (userData['password'] != password) {
-        _showToast("Wrong password! Please re-check your password.");
-        return;
-      }
-
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('user_email', userData['email']);
-      await prefs.setString('user_name', userData['name']);
-      await prefs.setString('user_id', userDoc.id);
-
-      _showToast("Login successful!");
-
-      if (email.toLowerCase() == 'admin@admin.admin') {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) =>  ScanPage()),
-        );
-      } else {
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(builder: (context) => HomePage1()),
-        );
-      }
-    } catch (e) {
-      print("⚠️ Sign-in error: $e");
-      _showToast("An unexpected error occurred.");
+    if (userData['password'] != password) {
+      _showToast("Wrong password! Please re-check your password.");
+      return;
     }
+
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString('user_email', userData['email']);
+    await prefs.setString('user_name', userData['name']);
+    await prefs.setString('user_id', userDoc.id);
+
+    // ✅ Determine and save role
+    final isAdmin = email.toLowerCase() == 'admin@admin.admin';
+    await prefs.setBool('is_admin', isAdmin);
+
+    _showToast("Login successful!");
+
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (_) => isAdmin ?  ScanPage() : HomePage1(),
+      ),
+    );
+  } catch (e) {
+    print("⚠️ Sign-in error: $e");
+    _showToast("An unexpected error occurred.");
   }
+}
 
   void _showToast(String message) {
     Fluttertoast.showToast(
