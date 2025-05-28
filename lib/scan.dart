@@ -1,9 +1,6 @@
 import 'package:barcode_scan2/barcode_scan2.dart';
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'login_page.dart';
 
 class ScanPage extends StatefulWidget {
   @override
@@ -11,59 +8,55 @@ class ScanPage extends StatefulWidget {
 }
 
 class _ScanPageState extends State<ScanPage> {
-  final FirebaseAuth auth = FirebaseAuth.instance;
   final FirebaseFirestore firestore = FirebaseFirestore.instance;
-
   String statusMessage = "No QR scanned yet.";
 
   Future<void> scanQRCode() async {
     try {
       final ScanResult result = await BarcodeScanner.scan();
-      final scannedData = result.rawContent;
+      final scannedQRCode = result.rawContent;
 
-      if (scannedData.isEmpty) {
+      if (scannedQRCode.isEmpty) {
         setState(() {
-          statusMessage = "⚠️ Scan failed or cancelled.";
+          statusMessage = "⚠️ Scan cancelled or failed.";
         });
         return;
       }
 
-      final spotMatch = RegExp(r'spot:(\d+)').firstMatch(scannedData);
-      final spot = spotMatch?.group(1);
+      // 🔍 Look for a spot where qr_code == scannedQRCode
+      final query = await firestore
+          .collection("spots")
+          .where("qr_code", isEqualTo: scannedQRCode)
+          .get();
 
-      if (spot != null) {
-        final User? user = auth.currentUser;
-
-        if (user != null) {
-          // Optional: delete user's reservation if exists
-          await firestore.collection("parking").doc(user.uid).delete();
-
-          // Clear spot info without deleting the document
-          await firestore.collection("spots").doc(spot).update({
-            "occupied": false,
-            "user_id": "",
-            "timestamp": "",
-            "reservation_id": "",
-            "reservation_datetime": "",
-            "reservation_time": "",
-          });
-
-          setState(() {
-            statusMessage = "🟢 Spot #$spot has been freed successfully.";
-          });
-        } else {
-          setState(() {
-            statusMessage = "⚠️ No user logged in.";
-          });
-        }
-      } else {
+      if (query.docs.isEmpty) {
         setState(() {
-          statusMessage = "⚠️ Spot number not found in QR.";
+          statusMessage = "❌ QR code not found in any spot.";
         });
+        return;
       }
+
+      final matchedDoc = query.docs.first;
+      final spotId = matchedDoc.id;
+      final spotData = matchedDoc.data();
+      final spotNumber = spotData['spot_number'] ?? spotId;
+
+      // ✅ Update the spot to free it
+      await firestore.collection("spots").doc(spotId).update({
+        "occupied": false,
+        "user_id": "",
+        "timestamp": "",
+        "reservation_id": "",
+        "reservation_datetime": "",
+        "reservation_time": "",
+      });
+
+      setState(() {
+        statusMessage = "🟢 Spot #$spotNumber has been freed successfully.";
+      });
     } catch (e) {
       setState(() {
-        statusMessage = "⚠️ Scan failed or cancelled.";
+        statusMessage = "❌ Error: ${e.toString()}";
       });
     }
   }
@@ -71,33 +64,18 @@ class _ScanPageState extends State<ScanPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-     appBar: AppBar(
-  backgroundColor: Colors.black,
-  title: const Text(
-    "Scanner",
-    style: TextStyle(
-      fontFamily: 'montserrat1',
-      color: Colors.white,
-    ),
-  ),
-  centerTitle: true,
-  iconTheme: const IconThemeData(color: Colors.white),
-  actions: [
-    IconButton(
-      icon: const Icon(Icons.logout),
-      tooltip: 'Logout',
-      onPressed: () async {
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.clear();
-        Navigator.pushAndRemoveUntil(
-          context,
-          MaterialPageRoute(builder: (_) => const LoginPage()), // or HomePage1()
-          (route) => false,
-        );
-      },
-    )
-  ],
-),
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        title: const Text(
+          "Scanner",
+          style: TextStyle(
+            fontFamily: 'montserrat1',
+            color: Colors.white,
+          ),
+        ),
+        centerTitle: true,
+        iconTheme: const IconThemeData(color: Colors.white),
+      ),
       backgroundColor: Colors.black,
       body: Center(
         child: Padding(
@@ -111,6 +89,12 @@ class _ScanPageState extends State<ScanPage> {
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 30),
+              Image.asset(
+                'assets/images/scanner.png',
+                height: 200,
+                width: 200,
+              ),
+              const SizedBox(height: 20),
               TextButton(
                 onPressed: scanQRCode,
                 style: TextButton.styleFrom(
