@@ -1,6 +1,9 @@
+import 'package:escapecode_mobile/dataProviders.dart';
+import 'package:escapecode_mobile/reserve_page.dart';
 import 'package:escapecode_mobile/scan.dart';
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
+import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'generate.dart';
@@ -16,19 +19,30 @@ class HomePage1 extends StatefulWidget {
 class _HomePageState extends State<HomePage1> {
   String? userName;
   String? userEmail;
+  String currentUserId = 'guest';
 
   @override
   void initState() {
     super.initState();
+    _loadCurrentUserId();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _checkRole();
       _loadUserInfo();
     });
   }
 
+  Future<void> _loadCurrentUserId() async {
+    // final prefs = await SharedPreferences.getInstance();
+    final provider = context.read<DataProvider>();
+    setState(() {
+      currentUserId = provider.ID ?? 'guest';
+    });
+  }
+
   Future<void> _checkRole() async {
-    final prefs = await SharedPreferences.getInstance();
-    final isAdmin = prefs.getBool('is_admin') ?? false;
+    // final prefs = await SharedPreferences.getInstance();
+    final provider = context.read<DataProvider>();
+    final isAdmin = provider.Admin ?? false;
 
     if (isAdmin) {
       // Redirect admin out of this page
@@ -41,16 +55,19 @@ class _HomePageState extends State<HomePage1> {
   }
 
   Future<void> _loadUserInfo() async {
-    final prefs = await SharedPreferences.getInstance();
+    // final prefs = await SharedPreferences.getInstance();
+    final provider = context.read<DataProvider>();
     setState(() {
-      userName = prefs.getString('user_name');
-      userEmail = prefs.getString('user_email');
+      userName = provider.Name;
+      userEmail = provider.Email;
     });
   }
 
   void _handleAction(VoidCallback onLoggedInAction) async {
-    final prefs = await SharedPreferences.getInstance();
-    final isLoggedIn = prefs.getString('user_id') != null;
+    // final prefs = await SharedPreferences.getInstance();
+
+    final provider = context.read<DataProvider>();
+    final isLoggedIn = provider.ID != null;
 
     if (!isLoggedIn) {
       Navigator.push(
@@ -162,7 +179,14 @@ class _HomePageState extends State<HomePage1> {
                       _handleAction(() {
                         Navigator.push(
                           context,
-                          MaterialPageRoute(builder: (_) => GeneratePage()),
+                          MaterialPageRoute(
+                            builder:
+                                (_) => ReservePage(
+                                  userId: currentUserId,
+                                  flag: false,
+                                ),
+                          ),
+                          // MaterialPageRoute(builder: (_) => GeneratePage()),
                         );
                       });
                     }, isYellow: false),

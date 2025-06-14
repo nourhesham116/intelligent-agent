@@ -1,6 +1,10 @@
 import 'package:barcode_scan2/barcode_scan2.dart';
+import 'package:escapecode_mobile/dataProviders.dart';
+import 'package:escapecode_mobile/login_page.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class ScanPage extends StatefulWidget {
   @override
@@ -14,7 +18,7 @@ class _ScanPageState extends State<ScanPage> {
   Future<void> scanQRCode() async {
     try {
       final ScanResult result = await BarcodeScanner.scan();
-      final scannedQRCode = result.rawContent;
+      final String scannedQRCode = result.rawContent;
 
       if (scannedQRCode.isEmpty) {
         setState(() {
@@ -23,11 +27,27 @@ class _ScanPageState extends State<ScanPage> {
         return;
       }
 
-      // 🔍 Look for a spot where qr_code == scannedQRCode
-      final query = await firestore
-          .collection("spots")
-          .where("qr_code", isEqualTo: scannedQRCode)
-          .get();
+      Map<String, String> parseQRCodeData(String statusMessage) {
+        final lines = statusMessage.split('\n');
+        final Map<String, String> data = {};
+        for (var line in lines) {
+          final parts = line.split(':');
+          if (parts.length >= 2) {
+            final key = parts[0];
+            final value = parts.sublist(1).join(':').trim();
+            data[key] = value;
+          }
+        }
+        return data;
+      }
+
+      final data = parseQRCodeData(scannedQRCode);
+
+      final query =
+          await firestore
+              .collection("spots")
+              .where("reservation_id", isEqualTo: data['reservation_id'])
+              .get();
 
       if (query.docs.isEmpty) {
         setState(() {
@@ -49,6 +69,8 @@ class _ScanPageState extends State<ScanPage> {
         "reservation_id": "",
         "reservation_datetime": "",
         "reservation_time": "",
+        "reserved": false,
+        "gate": true,
       });
 
       setState(() {
@@ -68,10 +90,7 @@ class _ScanPageState extends State<ScanPage> {
         backgroundColor: Colors.black,
         title: const Text(
           "Scanner",
-          style: TextStyle(
-            fontFamily: 'montserrat1',
-            color: Colors.white,
-          ),
+          style: TextStyle(fontFamily: 'montserrat1', color: Colors.white),
         ),
         centerTitle: true,
         iconTheme: const IconThemeData(color: Colors.white),
@@ -83,17 +102,47 @@ class _ScanPageState extends State<ScanPage> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
+              ElevatedButton(
+                onPressed: () async {
+                  // final prefs = await SharedPreferences.getInstance();
+                  final provider = context.read<DataProvider>();
+                  // await prefs.clear();
+                  provider.logout();
+                  Navigator.pushAndRemoveUntil(
+                    context,
+                    MaterialPageRoute(builder: (_) => const LoginPage()),
+                    (route) => false,
+                  );
+                  Future.delayed(const Duration(milliseconds: 300), () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text("Logged out successfully"),
+                        backgroundColor: Colors.black,
+                        behavior: SnackBarBehavior.floating,
+                      ),
+                    );
+                  });
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.amber,
+                  foregroundColor: Colors.orange,
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(30),
+                  ),
+                ),
+                child: const Text(
+                  "Logout",
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ),
               Text(
                 statusMessage,
                 style: const TextStyle(fontSize: 20, color: Colors.white),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 30),
-              Image.asset(
-                'assets/images/scanner.png',
-                height: 200,
-                width: 200,
-              ),
+              Image.asset('assets/images/scanner.png', height: 200, width: 200),
               const SizedBox(height: 20),
               TextButton(
                 onPressed: scanQRCode,

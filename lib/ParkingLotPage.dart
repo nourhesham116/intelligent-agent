@@ -1,6 +1,8 @@
 import 'dart:async';
+import 'package:escapecode_mobile/dataProviders.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'reserve_page.dart';
 
@@ -83,9 +85,10 @@ class _ParkingLotPageState extends State<ParkingLotPage> {
   }
 
   Future<void> _loadCurrentUserId() async {
-    final prefs = await SharedPreferences.getInstance();
+    // final prefs = await SharedPreferences.getInstance();
+    final provider = context.read<DataProvider>();
     setState(() {
-      currentUserId = prefs.getString('user_id') ?? 'guest';
+      currentUserId = provider.ID ?? 'guest';
     });
   }
 
@@ -165,7 +168,8 @@ class _ParkingLotPageState extends State<ParkingLotPage> {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (_) => ReservePage(userId: currentUserId),
+                    builder:
+                        (_) => ReservePage(userId: currentUserId, flag: true),
                   ),
                 );
               },
@@ -194,7 +198,7 @@ class _ParkingLotPageState extends State<ParkingLotPage> {
   Widget _buildSpotTile(QueryDocumentSnapshot spot) {
     final bool occupied = spot['occupied'] ?? false;
     final int spotNum = spot['spot_number'];
-    final String userId = spot['user_id'] ?? '';
+    // final String userId = spot['user_id'] ?? '';
     final String reservationTimeStr = spot['reservation_datetime'] ?? '';
     final DateTime? reservationTime =
         reservationTimeStr.isNotEmpty
@@ -207,20 +211,37 @@ class _ParkingLotPageState extends State<ParkingLotPage> {
     Color iconColor;
     Color borderColor;
 
-    if (reservationTime != null && reservationTime.isAfter(now)) {
-      bgColor = Colors.blue.shade900.withOpacity(0.3);
-      iconColor = Colors.blueAccent;
-      borderColor = Colors.blue;
-    } else if (occupied) {
-      bgColor = Colors.red.shade900.withOpacity(0.3);
-      iconColor = Colors.redAccent;
-      borderColor = Colors.red;
-    } else {
-      bgColor = Colors.green.shade900.withOpacity(0.2);
-      iconColor = Colors.greenAccent;
-      borderColor = Colors.green;
-    }
-
+    // if (reservationTime != null && reservationTime.isAfter(now)) {
+    //   bgColor = Colors.blue.shade900.withOpacity(0.3);
+    //   iconColor = Colors.blueAccent;
+    //   borderColor = Colors.blue;
+    // } else if (occupied) {
+    //   bgColor = Colors.red.shade900.withOpacity(0.3);
+    //   iconColor = Colors.redAccent;
+    //   borderColor = Colors.red;
+    // } else {
+    //   bgColor = Colors.green.shade900.withOpacity(0.2);
+    //   iconColor = Colors.greenAccent;
+    //   borderColor = Colors.green;
+    // }
+    bgColor =
+        occupied
+            ? Colors.red.shade900.withOpacity(0.3)
+            : (reservationTime != null && reservationTime.isAfter(now))
+            ? Colors.blue.shade900.withOpacity(0.3)
+            : Colors.green.shade900.withOpacity(0.2);
+    iconColor =
+        occupied
+            ? Colors.redAccent
+            : (reservationTime != null && reservationTime.isAfter(now))
+            ? Colors.blueAccent
+            : Colors.greenAccent;
+    borderColor =
+        occupied
+            ? Colors.red
+            : (reservationTime != null && reservationTime.isAfter(now))
+            ? Colors.blue
+            : Colors.green;
     return Container(
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(

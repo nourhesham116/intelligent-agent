@@ -1,10 +1,13 @@
+import 'package:escapecode_mobile/dataProviders.dart';
 import 'package:flutter/material.dart';
 import 'package:fluttertoast/fluttertoast.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:provider/provider.dart';
+// import 'package:shared_preferences/shared_preferences.dart';
 import 'homePage1.dart';
 import 'forgotPass.dart';
 import 'signup.dart';
+// import 'package:provider/provider.dart';
 import 'scan.dart'; // ✅ Import ScanPage
 
 class LoginPage extends StatefulWidget {
@@ -19,56 +22,53 @@ class _LoginPageState extends State<LoginPage> {
   final TextEditingController passwordController = TextEditingController();
 
   Future<void> _signIn() async {
-  final email = loginController.text.trim();
-  final password = passwordController.text.trim();
+    final email = loginController.text.trim();
+    final password = passwordController.text.trim();
 
-  if (email.isEmpty || password.isEmpty) {
-    _showToast("Please enter both email and password.");
-    return;
-  }
-
-  try {
-    final snapshot = await FirebaseFirestore.instance
-        .collection('users')
-        .where('email', isEqualTo: email)
-        .limit(1)
-        .get();
-
-    if (snapshot.docs.isEmpty) {
-      _showToast("No user found for that email!");
+    if (email.isEmpty || password.isEmpty) {
+      _showToast("Please enter both email and password.");
       return;
     }
 
-    final userDoc = snapshot.docs.first;
-    final userData = userDoc.data() as Map<String, dynamic>;
+    try {
+      final snapshot =
+          await FirebaseFirestore.instance
+              .collection('users')
+              .where('email', isEqualTo: email)
+              .limit(1)
+              .get();
 
-    if (userData['password'] != password) {
-      _showToast("Wrong password! Please re-check your password.");
-      return;
+      if (snapshot.docs.isEmpty) {
+        _showToast("No user found for that email!");
+        return;
+      }
+
+      final userDoc = snapshot.docs.first;
+      final userData = userDoc.data() as Map<String, dynamic>;
+      context.read<DataProvider>().setEmail(userData['email']);
+      context.read<DataProvider>().setName(userData['name']);
+      context.read<DataProvider>().setID(userData['id']);
+
+      final isAdmin = email.toLowerCase() == 'admin@admin.admin';
+      context.read<DataProvider>().setAdmin(isAdmin);
+
+      if (userData['password'] != password) {
+        _showToast("Wrong password! Please re-check your password.");
+
+        return;
+      }
+
+      _showToast("Login successful!");
+
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => isAdmin ? ScanPage() : HomePage1()),
+      );
+    } catch (e) {
+      print("⚠️ Sign-in error: $e");
+      _showToast("An unexpected error occurred.");
     }
-
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('user_email', userData['email']);
-    await prefs.setString('user_name', userData['name']);
-    await prefs.setString('user_id', userDoc.id);
-
-    // ✅ Determine and save role
-    final isAdmin = email.toLowerCase() == 'admin@admin.admin';
-    await prefs.setBool('is_admin', isAdmin);
-
-    _showToast("Login successful!");
-
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(
-        builder: (_) => isAdmin ?  ScanPage() : HomePage1(),
-      ),
-    );
-  } catch (e) {
-    print("⚠️ Sign-in error: $e");
-    _showToast("An unexpected error occurred.");
   }
-}
 
   void _showToast(String message) {
     Fluttertoast.showToast(
@@ -88,7 +88,10 @@ class _LoginPageState extends State<LoginPage> {
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        title: const Text('Sign In', style: TextStyle(fontFamily: 'montserrat1')),
+        title: const Text(
+          'Sign In',
+          style: TextStyle(fontFamily: 'montserrat1'),
+        ),
         centerTitle: true,
       ),
       body: Center(
@@ -114,7 +117,10 @@ class _LoginPageState extends State<LoginPage> {
                   alignment: Alignment.centerRight,
                   child: TextButton(
                     onPressed: () {
-                      Navigator.push(context, MaterialPageRoute(builder: (_) => ForgotPass()));
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => ForgotPass()),
+                      );
                     },
                     child: const Text(
                       'Forgot Password?',
@@ -135,7 +141,11 @@ class _LoginPageState extends State<LoginPage> {
                   ),
                   child: const Text(
                     'Login',
-                    style: TextStyle(fontFamily: 'montserrat1', fontSize: 16, fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                      fontFamily: 'montserrat1',
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 20),
@@ -143,16 +153,28 @@ class _LoginPageState extends State<LoginPage> {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Text("Don't have an account?", style: TextStyle(color: Colors.white70)),
+                      const Text(
+                        "Don't have an account?",
+                        style: TextStyle(color: Colors.white70),
+                      ),
                       TextButton(
                         onPressed: () {
-                          Navigator.push(context, MaterialPageRoute(builder: (_) => Signup()));
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (_) => Signup()),
+                          );
                         },
-                        child: const Text("Sign Up", style: TextStyle(color: Colors.amber, fontWeight: FontWeight.bold)),
+                        child: const Text(
+                          "Sign Up",
+                          style: TextStyle(
+                            color: Colors.amber,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
                       ),
                     ],
                   ),
-                )
+                ),
               ],
             ),
           ),
@@ -161,7 +183,11 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
-  Widget _buildTextField(TextEditingController controller, String label, {bool obscure = false}) {
+  Widget _buildTextField(
+    TextEditingController controller,
+    String label, {
+    bool obscure = false,
+  }) {
     return TextField(
       controller: controller,
       obscureText: obscure,
