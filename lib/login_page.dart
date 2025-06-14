@@ -47,7 +47,7 @@ class _LoginPageState extends State<LoginPage> {
       final userData = userDoc.data() as Map<String, dynamic>;
       context.read<DataProvider>().setEmail(userData['email']);
       context.read<DataProvider>().setName(userData['name']);
-      context.read<DataProvider>().setID(userData['id']);
+      context.read<DataProvider>().setID(userDoc.id); // ✅ Use document ID
 
       final isAdmin = email.toLowerCase() == 'admin@admin.admin';
       context.read<DataProvider>().setAdmin(isAdmin);

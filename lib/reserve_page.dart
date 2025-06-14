@@ -5,10 +5,12 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:uuid/uuid.dart';
+import 'package:http/http.dart' as http;
 
 class ReservePage extends StatefulWidget {
   final String userId;
   final bool flag;
+
   const ReservePage({super.key, required this.userId, required this.flag});
 
   @override
@@ -50,94 +52,58 @@ class _ReservePageState extends State<ReservePage> {
                 const SizedBox(height: 40),
                 widget.flag
                     ? ElevatedButton.icon(
-                      onPressed: _pickTime,
-                      icon: const Icon(Icons.access_time_rounded),
-                      label: const Text("Pick Time"),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.amber,
-                        foregroundColor: Colors.black,
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 28,
-                          vertical: 14,
+                        onPressed: _pickTime,
+                        icon: const Icon(Icons.access_time_rounded),
+                        label: const Text("Pick Time"),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.amber,
+                          foregroundColor: Colors.black,
+                          padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 14),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(30),
+                          ),
+                          textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                         ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(30),
-                        ),
-                        textStyle: const TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    )
+                      )
                     : const SizedBox(height: 24),
                 SizedBox(
                   height: 30,
                   child: Center(
-                    child:
-                        widget.flag
-                            ? (selectedTime != null
-                                ? Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    const Icon(
-                                      Icons.access_time_filled,
-                                      color: Colors.white,
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Text(
-                                      selectedTime!.format(context),
-                                      style: const TextStyle(
-                                        fontSize: 20,
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                  ],
-                                )
-                                : const Text(
-                                  "No time selected",
-                                  style: TextStyle(
-                                    color: Colors.grey,
-                                    fontSize: 16,
+                    child: widget.flag
+                        ? (selectedTime != null
+                            ? Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(Icons.access_time_filled, color: Colors.white),
+                                  const SizedBox(width: 8),
+                                  Text(
+                                    selectedTime!.format(context),
+                                    style: const TextStyle(fontSize: 20, color: Colors.white, fontWeight: FontWeight.bold),
                                   ),
-                                ))
-                            : null,
+                                ],
+                              )
+                            : const Text("No time selected", style: TextStyle(color: Colors.grey, fontSize: 16)))
+                        : null,
                   ),
                 ),
                 const SizedBox(height: 40),
                 ElevatedButton(
-                  onPressed:
-                      () =>
-                          widget.flag
-                              ? selectedTime != null
-                                  ? _attemptReservationAgg(true)
-                                  : null
-                              : _attemptReservationAgg(false),
-                  // selectedTime != null
-                  //     ? (widget.flag
-                  //         ? _attemptReservation
-                  //         : _attemptInstatntReservation)
-                  //     : null,
+                  onPressed: () => widget.flag
+                      ? selectedTime != null
+                          ? _attemptReservationAgg(true)
+                          : null
+                      : _attemptReservationAgg(false),
                   child: const Text("Confirm Reservation"),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor:
-                        widget.flag
-                            ? selectedTime != null
-                                ? Colors.yellow[700]
-                                : null
-                            : Colors.yellow[800],
+                    backgroundColor: widget.flag
+                        ? selectedTime != null
+                            ? Colors.yellow[700]
+                            : null
+                        : Colors.yellow[800],
                     foregroundColor: Colors.black,
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 40,
-                      vertical: 18,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(30),
-                    ),
-                    textStyle: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 18),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                    textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                   ),
                 ),
               ],
@@ -171,61 +137,85 @@ class _ReservePageState extends State<ReservePage> {
       setState(() {
         selectedTime = picked;
       });
+
+      final nowDate = DateTime.now();
+      final reservationDateTime = DateTime(
+        nowDate.year,
+        nowDate.month,
+        nowDate.day,
+        picked.hour,
+        picked.minute,
+      );
+
+      final formattedTimestamp =
+          "${reservationDateTime.year}-${reservationDateTime.month.toString().padLeft(2, '0')}-${reservationDateTime.day.toString().padLeft(2, '0')} ${reservationDateTime.hour.toString().padLeft(2, '0')}:${reservationDateTime.minute.toString().padLeft(2, '0')}";
+
+      final predictedPercent = await fetchPrediction(formattedTimestamp);
+
+      if (predictedPercent != null && context.mounted) {
+        String verdict;
+        if (predictedPercent < 40) {
+          verdict = "🔴 Very limited availability.";
+        } else if (predictedPercent < 70) {
+          verdict = "🟠 Moderate availability.";
+        } else {
+          verdict = "🟢 High availability.";
+        }
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              "Availability: ${predictedPercent.toStringAsFixed(1)}% — $verdict",
+              style: const TextStyle(color: Colors.black),
+            ),
+            backgroundColor: Colors.yellow,
+          ),
+        );
+      }
     }
   }
 
-  void _attemptReservationAgg(bool reserve) async {
+  Future<void> _attemptReservationAgg(bool reserve) async {
     if (reserve) {
       final now = TimeOfDay.now();
       final diffMinutes = _timeDifferenceInMinutes(now, selectedTime!);
-
       if (diffMinutes > 60) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text(
-              'You can only reserve within 1 hour before your parking time',
-              style: TextStyle(color: Colors.black),
-            ),
+            content: Text('You can only reserve within 1 hour before your parking time', style: TextStyle(color: Colors.black)),
             backgroundColor: Colors.yellow,
           ),
         );
         return;
       }
     }
+
     try {
-      final existing =
-          await FirebaseFirestore.instance
-              .collection('spots')
-              .where('occupied', isEqualTo: true)
-              .where('user_id', isEqualTo: widget.userId)
-              .get();
+      final existing = await FirebaseFirestore.instance
+          .collection('spots')
+          .where('occupied', isEqualTo: true)
+          .where('user_id', isEqualTo: widget.userId)
+          .get();
 
       if (existing.docs.isNotEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text(
-              'You already have a reservation.',
-              style: TextStyle(color: Colors.black),
-            ),
+            content: Text('You already have a reservation.', style: TextStyle(color: Colors.black)),
             backgroundColor: Colors.orange,
           ),
         );
         return;
       }
 
-      final availableSpots =
-          await FirebaseFirestore.instance
-              .collection('spots')
-              .where('occupied', isEqualTo: false)
-              .get();
+      final availableSpots = await FirebaseFirestore.instance
+          .collection('spots')
+          .where('occupied', isEqualTo: false)
+          .get();
 
       if (availableSpots.docs.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text(
-              'No free spots available',
-              style: TextStyle(color: Colors.black),
-            ),
+            content: Text('No free spots available', style: TextStyle(color: Colors.black)),
             backgroundColor: Colors.yellow,
           ),
         );
@@ -235,30 +225,16 @@ class _ReservePageState extends State<ReservePage> {
       final spotDoc = availableSpots.docs.first;
       final spotId = spotDoc.id;
       final spotNum = spotDoc['spot_number'];
-      // final nowDate = DateTime.now();
-      // final reservationDateTime =
-      //     DateTime(
-      //       nowDate.year,
-      //       nowDate.month,
-      //       nowDate.day,
-      //       selectedTime!.hour,
-      //       selectedTime!.minute,
-      //     ).toUtc();
-
       final uuid = const Uuid().v4();
       final generationTime = DateTime.now().toUtc().toIso8601String();
-      final qrContent =
-          "reservation_id:$uuid\nuser_id:${widget.userId}\nspot:$spotNum\ngenerated_at:$generationTime";
-      // "reservation_id:$uuid\nuser_id:${widget.userId}\nspot:$spotNum\nat:$reservationDateTime\ngenerated_at:$generationTime";
+      final qrContent = "reservation_id:$uuid\nuser_id:${widget.userId}\nspot:$spotNum\ngenerated_at:$generationTime";
       final qrBase64 = await _generateQrBase64(qrContent);
-      print("hello gello default res" + qrBase64);
+
       await FirebaseFirestore.instance.collection('spots').doc(spotId).update({
         'occupied': true,
         'user_id': widget.userId,
-
         'timestamp': FieldValue.serverTimestamp(),
         'qr_code': qrBase64,
-
         'reservation_id': reserve ? uuid : null,
         'generated_at': generationTime,
         "reserved": reserve ? true : false,
@@ -266,32 +242,42 @@ class _ReservePageState extends State<ReservePage> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            'Spot $spotNum reserved successfully',
-            style: const TextStyle(color: Colors.black),
-          ),
+          content: Text('Spot $spotNum reserved successfully', style: const TextStyle(color: Colors.black)),
           backgroundColor: Colors.yellow[700],
         ),
       );
 
       Navigator.pop(context);
-      Navigator.push(
-        context,
-        // MaterialPageRoute(builder: (_) => ProfilePage()),
-        MaterialPageRoute(builder: (_) => GeneratePage(qrData: widget.userId)),
-      );
+      Navigator.push(context, MaterialPageRoute(builder: (_) => GeneratePage(qrData: widget.userId)));
     } catch (e) {
       print("❌ ERROR: $e");
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text(
-            'Failed to reserve a spot',
-            style: TextStyle(color: Colors.black),
-          ),
+          content: Text('Failed to reserve a spot', style: TextStyle(color: Colors.black)),
           backgroundColor: Colors.redAccent,
         ),
       );
     }
+  }
+
+  Future<double?> fetchPrediction(String formattedTimestamp) async {
+    try {
+      final response = await http.post(
+        Uri.parse("http://10.0.2.2:8000/predict"),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({"timestamp": formattedTimestamp}),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        return data['predicted_percent'];
+      } else {
+        print("Prediction error: ${response.statusCode}");
+      }
+    } catch (e) {
+      print("Prediction exception: $e");
+    }
+    return null;
   }
 
   int _timeDifferenceInMinutes(TimeOfDay t1, TimeOfDay t2) {
@@ -306,7 +292,7 @@ class _ReservePageState extends State<ReservePage> {
       version: QrVersions.auto,
       errorCorrectionLevel: QrErrorCorrectLevel.L,
     );
-    // print('data of generate base 64 gello' + data);
+
     if (qrValidationResult.status == QrValidationStatus.valid) {
       final qrCode = qrValidationResult.qrCode!;
       final painter = QrPainter.withQr(
