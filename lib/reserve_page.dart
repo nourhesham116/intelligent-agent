@@ -44,7 +44,8 @@ class _ReservePageState extends State<ReservePage> {
               ),
             ),
           ),
-          Padding(
+         Center(
+           child:Padding(
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 40),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.start,
@@ -66,26 +67,21 @@ class _ReservePageState extends State<ReservePage> {
                         ),
                       )
                     : const SizedBox(height: 24),
-                SizedBox(
-                  height: 30,
-                  child: Center(
-                    child: widget.flag
-                        ? (selectedTime != null
-                            ? Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const Icon(Icons.access_time_filled, color: Colors.white),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    selectedTime!.format(context),
-                                    style: const TextStyle(fontSize: 20, color: Colors.white, fontWeight: FontWeight.bold),
-                                  ),
-                                ],
-                              )
-                            : const Text("No time selected", style: TextStyle(color: Colors.grey, fontSize: 16)))
-                        : null,
-                  ),
-                ),
+                const SizedBox(height: 30),
+                if (selectedTime != null)
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.access_time_filled, color: Colors.white),
+                      const SizedBox(width: 8),
+                      Text(
+                        selectedTime!.format(context),
+                        style: const TextStyle(fontSize: 20, color: Colors.white, fontWeight: FontWeight.bold),
+                      ),
+                    ],
+                  )
+                else
+                  const Text("No time selected", style: TextStyle(color: Colors.grey, fontSize: 16)),
                 const SizedBox(height: 40),
                 ElevatedButton(
                   onPressed: () => widget.flag
@@ -109,6 +105,7 @@ class _ReservePageState extends State<ReservePage> {
               ],
             ),
           ),
+         ),
         ],
       ),
     );
@@ -230,6 +227,18 @@ class _ReservePageState extends State<ReservePage> {
       final qrContent = "reservation_id:$uuid\nuser_id:${widget.userId}\nspot:$spotNum\ngenerated_at:$generationTime";
       final qrBase64 = await _generateQrBase64(qrContent);
 
+      DateTime? reservationDateTime;
+      if (reserve && selectedTime != null) {
+        final now = DateTime.now();
+        reservationDateTime = DateTime(
+          now.year,
+          now.month,
+          now.day,
+          selectedTime!.hour,
+          selectedTime!.minute,
+        );
+      }
+
       await FirebaseFirestore.instance.collection('spots').doc(spotId).update({
         'occupied': true,
         'user_id': widget.userId,
@@ -237,7 +246,9 @@ class _ReservePageState extends State<ReservePage> {
         'qr_code': qrBase64,
         'reservation_id': reserve ? uuid : null,
         'generated_at': generationTime,
-        "reserved": reserve ? true : false,
+        'reserved': reserve ? true : false,
+        'reservation_datetime': reservationDateTime != null ? Timestamp.fromDate(reservationDateTime) : null,
+        'reservation_time': selectedTime?.format(context) ?? "",
       });
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -248,7 +259,7 @@ class _ReservePageState extends State<ReservePage> {
       );
 
       Navigator.pop(context);
-      Navigator.push(context, MaterialPageRoute(builder: (_) => GeneratePage(qrData: widget.userId)));
+      Navigator.push(context, MaterialPageRoute(builder: (_) =>ProfilePage()));
     } catch (e) {
       print("❌ ERROR: $e");
       ScaffoldMessenger.of(context).showSnackBar(

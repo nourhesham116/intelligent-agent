@@ -22,6 +22,7 @@ class _ProfilePageState extends State<ProfilePage> {
   DateTime? reservationDateTime;
   String? qrBase64;
   String message = "Loading...";
+  String? spotDocId;
 
   @override
   void initState() {
@@ -34,19 +35,17 @@ class _ProfilePageState extends State<ProfilePage> {
     final provider = context.read<DataProvider>();
     userId = provider.ID;
 
-    print("🔍 Loaded user_id: $userId");
-
     if (userId == null || userId!.isEmpty) {
       setState(() => message = "No user logged in.");
       return;
     }
 
     try {
-      final userDoc =
-          await FirebaseFirestore.instance.collection("users").doc(userId).get();
+      final userDoc = await FirebaseFirestore.instance
+          .collection("users")
+          .doc(userId)
+          .get();
       final userData = userDoc.data();
-
-      print("📄 Full user data: $userData");
 
       if (userData == null) {
         setState(() => message = "User document not found.");
@@ -59,31 +58,65 @@ class _ProfilePageState extends State<ProfilePage> {
       final spots = await FirebaseFirestore.instance
           .collection('spots')
           .where('user_id', isEqualTo: userId)
-          .where('occupied', isEqualTo: true)
+          .where('reserved', isEqualTo: true)
+          .limit(1)
           .get();
 
       if (spots.docs.isNotEmpty) {
         final spot = spots.docs.first;
-        spotNumber = spot.data()['spot_number'];
-        reservationTime = spot.data()['reservation_time'];
-        qrBase64 = spot.data()['qr_code'];
+        spotDocId = spot.id;
+        spotNumber = spot['spot_number'];
+        reservationTime = spot['reservation_time'];
+        qrBase64 = spot['qr_code'];
 
-        final resDateStr = spot.data()['reservation_datetime'];
-        if (resDateStr != null && resDateStr != '') {
-          reservationDateTime = DateTime.tryParse(resDateStr);
+        final resTimestamp = spot['reservation_datetime'];
+        if (resTimestamp is Timestamp) {
+          reservationDateTime = resTimestamp.toDate();
         }
       }
 
       setState(() => message = "");
     } catch (e) {
-      print("❌ Error loading profile: $e");
+      print("\u274c Error loading profile: $e");
       setState(() => message = "Error loading profile.");
+    }
+  }
+
+  Future<void> _autoClearReservation() async {
+    if (spotDocId == null) return;
+
+    await FirebaseFirestore.instance.collection('spots').doc(spotDocId).update({
+      'occupied': false,
+      'reserved': false,
+      'user_id': "",
+      'qr_code': "",
+      'reservation_id': "",
+      'reservation_datetime': null,
+      'reservation_time': "",
+      'timestamp': null,
+      'generated_at': "",
+    });
+
+    setState(() {
+      spotNumber = null;
+      reservationTime = null;
+      reservationDateTime = null;
+      qrBase64 = null;
+    });
+
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Reservation expired and cleared."),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final qrWidget = qrBase64 != null
+    final qrWidget = qrBase64 != null && qrBase64!.isNotEmpty
         ? Container(
             decoration: BoxDecoration(
               color: Colors.white,
@@ -92,7 +125,7 @@ class _ProfilePageState extends State<ProfilePage> {
             padding: const EdgeInsets.all(10),
             child: Image.memory(base64Decode(qrBase64!)),
           )
-        : const SizedBox();
+        : const Text("No QR code available.", style: TextStyle(color: Colors.white70));
 
     return Scaffold(
       backgroundColor: Colors.black,
@@ -104,12 +137,7 @@ class _ProfilePageState extends State<ProfilePage> {
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: message.isNotEmpty
-            ? Center(
-                child: Text(
-                  message,
-                  style: const TextStyle(color: Colors.white),
-                ),
-              )
+            ? Center(child: Text(message, style: const TextStyle(color: Colors.white)))
             : ListView(
                 children: [
                   const Center(
@@ -127,64 +155,73 @@ class _ProfilePageState extends State<ProfilePage> {
                   Text("Name: $name", style: const TextStyle(color: Colors.white)),
                   Text("Email: $email", style: const TextStyle(color: Colors.white70)),
                   const SizedBox(height: 30),
-                  if (spotNumber != null &&
-                      reservationTime != null &&
-                      reservationDateTime != null) ...[
-                    Text("Reserved Spot: $spotNumber",
-                        style: const TextStyle(color: Colors.white)),
-                    Text("Reservation Time: $reservationTime",
-                        style: const TextStyle(color: Colors.white70)),
+                  if (spotNumber != null && reservationDateTime != null) ...[
+                    Text("Reserved Spot: $spotNumber", style: const TextStyle(color: Colors.white)),
+                    Text("Reservation Time: ${reservationTime ?? 'Unknown'}", style: const TextStyle(color: Colors.white70)),
                     const SizedBox(height: 10),
                     StreamBuilder<Duration>(
                       stream: Stream.periodic(const Duration(seconds: 1), (_) {
                         final now = DateTime.now().toUtc();
-                        return reservationDateTime!.difference(now);
+                        final graceEnd = reservationDateTime!.add(const Duration(minutes: 10));
+                        return graceEnd.difference(now);
                       }),
                       builder: (context, snapshot) {
                         if (!snapshot.hasData) {
-                          return const Text("Calculating...",
-                              style: TextStyle(color: Colors.white70));
+                          return const Text("Calculating...", style: TextStyle(color: Colors.white70));
                         }
-                        final diff = snapshot.data!;
-                        if (diff.isNegative) {
-                          return const Text(
-                            "Reservation time has passed.",
-                            style: TextStyle(color: Colors.red),
-                          );
+
+                        final now = DateTime.now().toUtc();
+
+                        if (now.isBefore(reservationDateTime!)) {
+                          final remaining = reservationDateTime!.difference(now);
+                          final h = remaining.inHours.toString().padLeft(2, '0');
+                          final m = (remaining.inMinutes % 60).toString().padLeft(2, '0');
+                          final s = (remaining.inSeconds % 60).toString().padLeft(2, '0');
+                          return Text("$h:$m:$s remaining",
+                              style: const TextStyle(color: Colors.greenAccent, fontSize: 18));
                         }
-                        final h = diff.inHours.toString().padLeft(2, '0');
-                        final m = (diff.inMinutes % 60).toString().padLeft(2, '0');
-                        final s = (diff.inSeconds % 60).toString().padLeft(2, '0');
-                        return Text(
-                          "$h:$m:$s remaining",
-                          style: const TextStyle(
-                              color: Colors.greenAccent, fontSize: 18),
-                        );
+
+                        final timeLeft = reservationDateTime!.add(const Duration(minutes: 10)).difference(now);
+
+                        if (timeLeft > Duration.zero) {
+                          final m = timeLeft.inMinutes.toString().padLeft(2, '0');
+                          final s = (timeLeft.inSeconds % 60).toString().padLeft(2, '0');
+                          return Text("\u23f3 Grace Period: $m:$s",
+                              style: const TextStyle(color: Colors.redAccent, fontSize: 18));
+                        } else {
+                          _autoClearReservation();
+                          return const Text("Reservation auto-cleared.",
+                              style: TextStyle(color: Colors.redAccent));
+                        }
                       },
                     ),
                     const SizedBox(height: 20),
-                    const Text("Your QR Code:",
-                        style: TextStyle(color: Colors.amber)),
+                    const Text("Your QR Code:", style: TextStyle(color: Colors.amber)),
                     const SizedBox(height: 10),
                     Center(child: qrWidget),
-                  ] else
-                    const Text(
-                      "No active reservation.",
-                      style: TextStyle(color: Colors.white),
+                    const SizedBox(height: 20),
+                    ElevatedButton(
+                      onPressed: _cancelReservation,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.red,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
+                      ),
+                      child: const Text("Cancel Reservation"),
                     ),
+                  ] else
+                    const Text("No active reservation.", style: TextStyle(color: Colors.white)),
                   const SizedBox(height: 30),
                   ElevatedButton(
                     onPressed: () async {
-                      // Sign out from Firebase and clear provider state
                       await FirebaseAuth.instance.signOut();
                       context.read<DataProvider>().logout();
-
                       Navigator.pushAndRemoveUntil(
                         context,
                         MaterialPageRoute(builder: (_) => const LoginPage()),
                         (route) => false,
                       );
-
                       Future.delayed(const Duration(milliseconds: 300), () {
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
@@ -199,16 +236,61 @@ class _ProfilePageState extends State<ProfilePage> {
                       backgroundColor: Colors.amber,
                       foregroundColor: Colors.black,
                       padding: const EdgeInsets.symmetric(vertical: 16),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(30),
-                      ),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
                     ),
-                    child: const Text("Logout",
-                        style: TextStyle(fontWeight: FontWeight.bold)),
+                    child: const Text("Logout", style: TextStyle(fontWeight: FontWeight.bold)),
                   ),
                 ],
               ),
       ),
     );
+  }
+
+  Future<void> _cancelReservation() async {
+    try {
+      final spotQuery = await FirebaseFirestore.instance
+          .collection('spots')
+          .where('user_id', isEqualTo: userId)
+          .where('reserved', isEqualTo: true)
+          .limit(1)
+          .get();
+
+      if (spotQuery.docs.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("No active reservation found."), backgroundColor: Colors.grey),
+        );
+        return;
+      }
+
+      final spotDoc = spotQuery.docs.first;
+
+      await FirebaseFirestore.instance.collection('spots').doc(spotDoc.id).update({
+        'occupied': false,
+        'reserved': false,
+        'user_id': "",
+        'qr_code': "",
+        'reservation_id': "",
+        'reservation_datetime': null,
+        'reservation_time': "",
+        'timestamp': null,
+        'generated_at': "",
+      });
+
+      setState(() {
+        spotNumber = null;
+        qrBase64 = null;
+        reservationDateTime = null;
+        reservationTime = null;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Reservation cancelled successfully."), backgroundColor: Colors.green),
+      );
+    } catch (e) {
+      print("\u274c Cancel error: $e");
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Failed to cancel reservation."), backgroundColor: Colors.red),
+      );
+    }
   }
 }

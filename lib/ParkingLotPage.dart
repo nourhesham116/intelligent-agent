@@ -3,7 +3,6 @@ import 'package:escapecode_mobile/dataProviders.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'reserve_page.dart';
 
 class ParkingLotPage extends StatefulWidget {
@@ -21,71 +20,50 @@ class _ParkingLotPageState extends State<ParkingLotPage> {
   void initState() {
     super.initState();
     _loadCurrentUserId();
-    print("🟢 INIT: running initial cleanup");
     cleanExpiredReservations();
-    print("🔁 Starting 1-minute periodic cleanup");
     _startPeriodicCleanup();
   }
 
   void _startPeriodicCleanup() {
     _cleanupTimer = Timer.periodic(const Duration(minutes: 1), (timer) {
-      print("🔄 Triggered periodic cleanup");
       cleanExpiredReservations();
     });
   }
 
   Future<void> cleanExpiredReservations() async {
     final now = DateTime.now().toUtc();
-    print("🕓 Running cleanup at $now (UTC)");
-
-    final snapshot =
-        await FirebaseFirestore.instance
-            .collection('spots')
-            .where('occupied', isEqualTo: true)
-            .get();
-
-    print("🔍 Found ${snapshot.docs.length} occupied spots");
+    final snapshot = await FirebaseFirestore.instance
+        .collection('spots')
+        .where('occupied', isEqualTo: true)
+        .get();
 
     for (var doc in snapshot.docs) {
       final data = doc.data();
-      print("📦 ${doc.id} data: $data");
+      final reservationField = data['reservation_datetime'];
 
-      final reservationTimeStr = data['reservation_datetime'];
-
-      if (reservationTimeStr == null || reservationTimeStr == "") {
-        print("⚠️ Skipped ${doc.id} — no reservation_datetime");
+      if (reservationField == null || reservationField is! Timestamp) {
         continue;
       }
 
-      final reservationTime = DateTime.tryParse(reservationTimeStr);
-      if (reservationTime == null) {
-        print("❌ Skipped ${doc.id} — invalid reservation_datetime");
-        continue;
-      }
-
-      print("⏰ Spot ${doc.id} reserved until $reservationTime | Now: $now");
+      final DateTime reservationTime = reservationField.toDate();
 
       if (now.isAfter(reservationTime)) {
-        print("✅ Cleaning expired spot ${doc.id}");
-        await FirebaseFirestore.instance
-            .collection('spots')
-            .doc(doc.id)
-            .update({
-              'occupied': false,
-              'user_id': "",
-              'reservation_time': "",
-              'timestamp': "",
-              'qr_code': "",
-              'reservation_datetime': "",
-            });
-      } else {
-        print("⏳ Spot ${doc.id} still reserved");
+        await FirebaseFirestore.instance.collection('spots').doc(doc.id).update({
+          'occupied': false,
+          'reserved': false,
+          'user_id': "",
+          'qr_code': "",
+          'reservation_id': "",
+          'reservation_datetime': null,
+          'reservation_time': "",
+          'timestamp': null,
+          'generated_at': "",
+        });
       }
     }
   }
 
   Future<void> _loadCurrentUserId() async {
-    // final prefs = await SharedPreferences.getInstance();
     final provider = context.read<DataProvider>();
     setState(() {
       currentUserId = provider.ID ?? 'guest';
@@ -107,15 +85,13 @@ class _ParkingLotPageState extends State<ParkingLotPage> {
           'Parking Lot',
           style: TextStyle(
             color: Colors.white,
-            fontFamily: 'montserrat1', // Optional: keep your custom font
-            fontSize: 20, // Optional: adjust size if needed
+            fontFamily: 'montserrat1',
+            fontSize: 20,
             fontWeight: FontWeight.bold,
           ),
         ),
         backgroundColor: Colors.black,
-        iconTheme: const IconThemeData(
-          color: Colors.white,
-        ), // Makes icons white too
+        iconTheme: const IconThemeData(color: Colors.white),
       ),
       body: Padding(
         padding: const EdgeInsets.all(16),
@@ -141,23 +117,18 @@ class _ParkingLotPageState extends State<ParkingLotPage> {
                   }
 
                   final spots = snapshot.data!.docs;
-
-                  final sortedSpots =
-                      spots..sort(
-                        (a, b) => (a['spot_number'] as int).compareTo(
-                          b['spot_number'] as int,
-                        ),
-                      );
+                  final sortedSpots = spots
+                    ..sort((a, b) => (a['spot_number'] as int)
+                        .compareTo(b['spot_number'] as int));
                   final limitedSpots = sortedSpots.take(8).toList();
 
                   return GridView.count(
                     crossAxisCount: 2,
                     mainAxisSpacing: 14,
                     crossAxisSpacing: 14,
-                    children:
-                        limitedSpots
-                            .map((spot) => _buildSpotTile(spot))
-                            .toList(),
+                    children: limitedSpots
+                        .map((spot) => _buildSpotTile(spot))
+                        .toList(),
                   );
                 },
               ),
@@ -168,8 +139,8 @@ class _ParkingLotPageState extends State<ParkingLotPage> {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder:
-                        (_) => ReservePage(userId: currentUserId, flag: true),
+                    builder: (_) =>
+                        ReservePage(userId: currentUserId, flag: true),
                   ),
                 );
               },
@@ -177,9 +148,7 @@ class _ParkingLotPageState extends State<ParkingLotPage> {
                 backgroundColor: Colors.yellow[700],
                 foregroundColor: Colors.black,
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 40,
-                  vertical: 18,
-                ),
+                    horizontal: 40, vertical: 18),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
@@ -197,51 +166,31 @@ class _ParkingLotPageState extends State<ParkingLotPage> {
 
   Widget _buildSpotTile(QueryDocumentSnapshot spot) {
     final bool occupied = spot['occupied'] ?? false;
+    final bool reserved = spot['reserved'] ?? false;
     final int spotNum = spot['spot_number'];
-    // final String userId = spot['user_id'] ?? '';
-    final String reservationTimeStr = spot['reservation_datetime'] ?? '';
-    final DateTime? reservationTime =
-        reservationTimeStr.isNotEmpty
-            ? DateTime.tryParse(reservationTimeStr)
-            : null;
-
-    final DateTime now = DateTime.now().toUtc();
 
     Color bgColor;
     Color iconColor;
     Color borderColor;
+    String statusLabel;
 
-    // if (reservationTime != null && reservationTime.isAfter(now)) {
-    //   bgColor = Colors.blue.shade900.withOpacity(0.3);
-    //   iconColor = Colors.blueAccent;
-    //   borderColor = Colors.blue;
-    // } else if (occupied) {
-    //   bgColor = Colors.red.shade900.withOpacity(0.3);
-    //   iconColor = Colors.redAccent;
-    //   borderColor = Colors.red;
-    // } else {
-    //   bgColor = Colors.green.shade900.withOpacity(0.2);
-    //   iconColor = Colors.greenAccent;
-    //   borderColor = Colors.green;
-    // }
-    bgColor =
-        occupied
-            ? Colors.red.shade900.withOpacity(0.3)
-            : (reservationTime != null && reservationTime.isAfter(now))
-            ? Colors.blue.shade900.withOpacity(0.3)
-            : Colors.green.shade900.withOpacity(0.2);
-    iconColor =
-        occupied
-            ? Colors.redAccent
-            : (reservationTime != null && reservationTime.isAfter(now))
-            ? Colors.blueAccent
-            : Colors.greenAccent;
-    borderColor =
-        occupied
-            ? Colors.red
-            : (reservationTime != null && reservationTime.isAfter(now))
-            ? Colors.blue
-            : Colors.green;
+    if (reserved && occupied) {
+      bgColor = Colors.blue.shade900.withOpacity(0.3);
+      iconColor = Colors.blueAccent;
+      borderColor = Colors.blue;
+      statusLabel = 'Reserved';
+    } else if (!reserved && occupied) {
+      bgColor = Colors.red.shade900.withOpacity(0.3);
+      iconColor = Colors.redAccent;
+      borderColor = Colors.red;
+      statusLabel = 'Occupied';
+    } else {
+      bgColor = Colors.green.shade900.withOpacity(0.2);
+      iconColor = Colors.greenAccent;
+      borderColor = Colors.green;
+      statusLabel = 'Free';
+    }
+
     return Container(
       padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
@@ -268,18 +217,9 @@ class _ParkingLotPageState extends State<ParkingLotPage> {
           ),
           const SizedBox(height: 4),
           Text(
-            (reservationTime != null && reservationTime.isAfter(now))
-                ? 'Reserved'
-                : occupied
-                ? 'Occupied'
-                : 'Free',
+            statusLabel,
             style: TextStyle(
-              color:
-                  (reservationTime != null && reservationTime.isAfter(now))
-                      ? Colors.blue[200]
-                      : occupied
-                      ? Colors.red[200]
-                      : Colors.greenAccent,
+              color: iconColor,
               fontWeight: FontWeight.w500,
             ),
           ),
